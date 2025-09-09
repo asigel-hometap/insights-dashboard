@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insights Content Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+        }
+        .status-live { background-color: #dcfce7; color: #166534; }
+        .status-review { background-color: #fef3c7; color: #92400e; }
+        .status-draft { background-color: #e5e7eb; color: #374151; }
+        .status-retired { background-color: #f3f4f6; color: #6b7280; }
+        .status-archived { background-color: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div x-data="smartFactsDashboard()" class="min-h-screen">
+        <!-- Header -->
+        <header class="gradient-bg text-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold">Insights Content Dashboard</h1>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold" x-text="stats.total"></div>
+                        <div class="text-blue-100">Total Insights</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <div class="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 py-6">
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <!-- Search -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search Insights</label>
+                        <input 
+                            type="text" 
+                            x-model="searchQuery"
+                            placeholder="Search by ID, content, or keywords..."
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                    </div>
+                    
+                    <!-- Status Filter -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select 
+                            x-model="statusFilter"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">All Statuses</option>
+                            <option value="live">Live</option>
+                            <option value="review">Under Review</option>
+                            <option value="draft">Draft</option>
+                            <option value="retired">Retired</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Type Filter -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                        <select 
+                            x-model="typeFilter"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">All Types</option>
+                            <option value="static">Static Content</option>
+                            <option value="dynamic">Dynamic Content</option>
+                        </select>
+                    </div>
+                    
+                    <!-- View Toggle -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">View</label>
+                        <div class="flex rounded-md shadow-sm">
+                            <button 
+                                @click="viewMode = 'grid'"
+                                :class="viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                class="px-3 py-2 text-sm font-medium border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                                </svg>
+                            </button>
+                            <button 
+                                @click="viewMode = 'list'"
+                                :class="viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                                class="px-3 py-2 text-sm font-medium border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Export Button -->
+                <div class="mt-4 flex justify-end">
+                    <button 
+                        @click="exportToCSV()"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    >
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Export CSV
+                    </button>
+                </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-green-100 rounded-lg">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Live</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="stats.live"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-yellow-100 rounded-lg">
+                            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Under Review</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="stats.review"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-blue-100 rounded-lg">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Dynamic</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="stats.dynamic"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-purple-100 rounded-lg">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-10 0a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2M9 10h6M9 14h6"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">With CTA</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="stats.withCta"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-gray-100 rounded-lg">
+                            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Retired</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="stats.retired"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights Display -->
+            <div class="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
+            <!-- Grid View -->
+            <div x-show="viewMode === 'grid'" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                <template x-for="insight in filteredInsights" :key="insight.id">
+                    <div class="bg-white rounded-lg shadow-sm p-6 card-hover">
+                        <!-- Header -->
+                        <div class="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900" x-text="insight.id"></h3>
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <span class="status-badge" :class="'status-' + insight.status" x-text="insight.status"></span>
+                                    <span x-show="insight.isDynamic" class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Dynamic</span>
+                                    <span x-show="insight.hasCta" class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">CTA</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm text-gray-500">Priority</div>
+                                <div class="text-lg font-semibold" x-text="insight.priority"></div>
+                            </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Content:</h4>
+                            <p class="text-gray-600 text-sm leading-relaxed" x-text="insight.content"></p>
+                        </div>
+
+                        <!-- Dynamic Variables -->
+                        <div x-show="insight.templateKeys && insight.templateKeys.length > 0" class="mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Dynamic Variables:</h4>
+                            <div class="flex flex-wrap gap-1">
+                                <template x-for="key in insight.templateKeys" :key="key">
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded" x-text="key"></span>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- CTA -->
+                        <div x-show="insight.cta" class="mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Call to Action:</h4>
+                            <div class="bg-gray-50 p-3 rounded">
+                                <div class="text-sm font-medium text-gray-900" x-text="insight.cta.text"></div>
+                                <div class="text-xs text-blue-600 mt-1 break-all" x-text="insight.cta.url"></div>
+                            </div>
+                        </div>
+
+                        <!-- Requirements -->
+                        <div class="text-xs text-gray-500 space-y-1">
+                            <div x-show="insight.requiresPrimaryUser">✓ Requires Primary User</div>
+                            <div x-show="insight.requiresProfileComplete">✓ Requires Profile Complete</div>
+                            <div x-show="insight.requiredContext && insight.requiredContext.length > 0">
+                                Context: <span x-text="insight.requiredContext.join(', ')"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- List View -->
+            <div x-show="viewMode === 'list'" class="space-y-4">
+                <template x-for="insight in filteredInsights" :key="insight.id">
+                    <div class="bg-white rounded-lg shadow-sm p-6 card-hover">
+                        <div class="flex items-start space-x-4">
+                            <!-- Left Column: ID and Status -->
+                            <div class="flex-shrink-0 w-32">
+                                <h3 class="text-lg font-semibold text-gray-900" x-text="insight.id"></h3>
+                                <div class="flex flex-col space-y-2 mt-2">
+                                    <span class="status-badge" :class="'status-' + insight.status" x-text="insight.status"></span>
+                                    <div class="flex space-x-1">
+                                        <span x-show="insight.isDynamic" class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Dynamic</span>
+                                        <span x-show="insight.hasCta" class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">CTA</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        Priority: <span class="font-semibold" x-text="insight.priority"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Middle Column: Content -->
+                            <div class="flex-1 min-w-0">
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">Content:</h4>
+                                <p class="text-gray-600 text-sm leading-relaxed" x-text="insight.content"></p>
+                                
+                                <!-- Dynamic Variables -->
+                                <div x-show="insight.templateKeys && insight.templateKeys.length > 0" class="mt-3">
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">Dynamic Variables:</h4>
+                                    <div class="flex flex-wrap gap-1">
+                                        <template x-for="key in insight.templateKeys" :key="key">
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded" x-text="key"></span>
+                                        </template>
+                                    </div>
+                                </div>
+                                
+                                <!-- CTA -->
+                                <div x-show="insight.cta" class="mt-3">
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">Call to Action:</h4>
+                                    <div class="bg-gray-50 p-3 rounded">
+                                        <div class="text-sm font-medium text-gray-900" x-text="insight.cta.text"></div>
+                                        <div class="text-xs text-blue-600 mt-1 break-all" x-text="insight.cta.url"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Right Column: Requirements -->
+                            <div class="flex-shrink-0 w-48">
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">Requirements:</h4>
+                                <div class="text-xs text-gray-500 space-y-1">
+                                    <div x-show="insight.requiresPrimaryUser" class="flex items-center">
+                                        <svg class="w-3 h-3 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        Primary User
+                                    </div>
+                                    <div x-show="insight.requiresProfileComplete" class="flex items-center">
+                                        <svg class="w-3 h-3 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        Profile Complete
+                                    </div>
+                                    <div x-show="insight.requiredContext && insight.requiredContext.length > 0" class="mt-2">
+                                        <div class="text-xs font-medium text-gray-700">Context:</div>
+                                        <div class="text-xs text-gray-600" x-text="insight.requiredContext.join(', ')"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Empty State -->
+            <div x-show="filteredInsights.length === 0" class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 6.291A7.962 7.962 0 0012 4c-2.34 0-4.29 1.009-5.824 2.709"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No insights found</h3>
+                <p class="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function smartFactsDashboard() {
+            return {
+                searchQuery: '',
+                statusFilter: '',
+                typeFilter: '',
+                viewMode: 'grid',
+                
+                insights: [
+                    // Static Content Insights
+                    {
+                        id: 'SMRT1',
+                        content: 'Interest rates can be unpredictable. But there are ways to access your equity without losing your current low mortgage rate.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: true,
+                        cta: {
+                            text: 'See ways to access equity',
+                            url: 'https://www.hometap.com/blog/cash-out-refinance-vs-a-home-equity-loan/'
+                        },
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT7',
+                        content: 'Did you know that 22% of property fire damage is caused by fireplaces and chimneys? If you haven\'t had yours inspected in a while, it might be a good time.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: true,
+                        cta: {
+                            text: 'Learn about fireplace maintenance',
+                            url: 'https://www.hometap.com/blog/8-tips-for-preparing-your-home-for-winter/'
+                        },
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT10',
+                        content: 'Did you know that many insurance companies offer discounts for having a security system? Homeowners can save an average of 2-5% on their policy premium.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: true,
+                        cta: {
+                            text: 'See home security options',
+                            url: 'https://simplisafe.com/hometap?utm_source=hometap&utm_medium=partnerdigital&utm_campaign=sr'
+                        },
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: true,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT14',
+                        content: 'You can claim 30% of the total cost (up to $2,000) of most energy-efficient upgrades — including heat pumps, central air, insulation, and new windows — on your taxes.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT16',
+                        content: 'Larger homes often have higher heating and cooling costs. Upgrades like a programmable thermostat or insulation can keep you comfortable and save you money.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT18',
+                        content: 'Did you know that making minor repairs and staging your home can increase its resale value? Start preparing now to maximize its appeal and increase its potential sale price.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT21',
+                        content: 'Home equity can be a powerful tool for paying off higher-interest debts, improving your credit score, and simplifying your financial landscape.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT26',
+                        content: 'Many homeowners forget to clean their gutters and downspouts before winter. Find out what other tasks can help you prepare your home for the season.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT28',
+                        content: 'Before you renovate, see which improvements will increase your home\'s value and which will increase your quality of life.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT34',
+                        content: 'Hoping to make a smooth transition between homes? Find out how you can cover the financial gap during the process to make it less stressful.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT49',
+                        content: 'Traditional lending products aren\'t the only options for financing renovations. See alternative ways to fund your next home improvement project.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT67',
+                        content: 'The "28% rule" suggests that homeowners should spend 28% or less of their gross monthly income on their mortgage payment.\nSource: Investopedia',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT68',
+                        content: '42% of homeowners who were renovating in 2023 had plans to update their kitchens.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT69',
+                        content: 'Thinking about selling? 68% of buyers say the kitchen is the make-or-break home feature.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT70',
+                        content: 'Did you know hundreds of factors might contribute to a home value estimate? Learn more about how Hometap determines your home value.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT71',
+                        content: 'Homeowners spend a total of $14 billion per year on HVAC services or repairs. Proactive maintenance can prevent costly repairs!\nSource: Office of Energy Efficiency and Renewable Energy',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT72',
+                        content: 'In the last 14 years, Americans have lost a total of $206.9 million as a result of home improvement scams.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT73',
+                        content: 'Considering selling your home soon? 82% of buyers\' agents say staging a home makes it easier for a buyer to visualize the property as a future home.\nSource: National Association of Realtors',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT74',
+                        content: 'Replacing your home\'s windows should wait \'til spring, but winter is an ideal time to schedule the replacement. Did you know our renovation calculator can help you estimate window replacement ROI in your area?',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT75',
+                        content: 'Paying more towards your mortgage principal doesn\'t just build equity faster — it also reduces the total amount of interest you\'ll pay.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT76',
+                        content: 'Some renovations are just built different. A small bathroom remodel can pay for itself, with a 102% return on investment.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT79',
+                        content: 'If you take on too much debt in a bad market, you may owe more on your home than it\'s worth. That\'s why lenders typically require you to keep a certain percentage of equity.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT82',
+                        content: 'We can\'t predict interest rates… but we can help you plan for market uncertainty.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT83',
+                        content: 'Understanding your financial health is key to securing your future — especially while the market and interest rates are in flux.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT84',
+                        content: 'Thinking of renovating? You\'re not alone! With high mortgage rates and low housing inventory, 63% of homeowners would rather remodel than move.\nSource: Adobe',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT85',
+                        content: 'Worried about market uncertainty? Prep for the future by prioritizing your financial health today — whether that means building your savings or paying off debt.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT86',
+                        content: '',
+                        status: 'draft',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT88',
+                        content: '',
+                        status: 'draft',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT93',
+                        content: 'Sample content for SMRT93',
+                        status: 'review',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT94',
+                        content: 'Sample content for SMRT94',
+                        status: 'review',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT95',
+                        content: 'Sample content for SMRT95',
+                        status: 'review',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT96',
+                        content: 'Sample content for SMRT96',
+                        status: 'review',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT97',
+                        content: 'Sample content for SMRT97',
+                        status: 'review',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT99',
+                        content: 'Sample content for SMRT99',
+                        status: 'review',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT102',
+                        content: 'Sample content for SMRT102',
+                        status: 'review',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT103',
+                        content: 'Are you past due on a mortgage payment? We know how stressful the phone calls and emails can be when a payment is missed. We\'re here to help.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT104',
+                        content: 'Home sale is the most common settlement method for Hometap homeowners. If you anticipate selling, read this guide to help you plan a smooth sale and settlement.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT105',
+                        content: 'Ready to up your financial savvy? As a Hometap homeowner, you have access to a robust financial health hub full of articles, courses, webinars, and more.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    {
+                        id: 'SMRT106',
+                        content: 'Did you know you can refer back to, and even download, all of your quarterly account statements?',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: false,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    },
+                    
+                    // Dynamic Content Insights
+                    {
+                        id: 'SMRT4',
+                        content: 'With a current value of [home_value] and expected annual appreciation of [appreciation_rate]%, your home could be worth [five_year_projected_value] in 5 years, giving you an extra [five_year_equity_currency] in equity. We like that math.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['EQUITY_SCENARIO'],
+                        requiresPrimaryUser: true,
+                        requiresProfileComplete: true,
+                        templateKeys: ['home_value', 'appreciation_rate', 'five_year_projected_value', 'current_equity', 'five_year_projected_equity', 'tentative_liens']
+                    },
+                    {
+                        id: 'SMRT6',
+                        content: 'We project that your home\'s value will reach [five_year_projected_value] by [five_year_projected_date], potentially increasing your equity. Now\'s the time to start planning ahead for your future financial goals.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: true,
+                        cta: {
+                            text: 'See ways to use your equity',
+                            url: 'https://www.hometap.com/accomplish-your-goals'
+                        },
+                        requiredContext: ['EQUITY_SCENARIO'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['five_year_projected_value', 'five_year_projected_date']
+                    },
+                    {
+                        id: 'SMRT11',
+                        content: 'Experts suggest an annual maintenance budget of 1-2% of a home\'s value — for you, that\'s [lower_maintenance_budget]-[upper_maintenance_budget] — but a home warranty may be a more affordable alternative.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['home_value']
+                    },
+                    {
+                        id: 'SMRT15',
+                        content: 'Sample dynamic content for SMRT15',
+                        status: 'review',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['sample_key']
+                    },
+                    {
+                        id: 'SMRT17',
+                        content: 'Thinking about selling your home? You could walk away with an estimated [estimated_profit] in profit — that\'s based on your current home equity, minus a typical [average_realtor_fee]% realtor fee.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['estimated_profit', 'average_realtor_fee']
+                    },
+                    {
+                        id: 'SMRT77',
+                        content: 'Spend 1-4% of your [home_value] home value on routine maintenance to save on large repairs down the line.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['home_value']
+                    },
+                    {
+                        id: 'SMRT78',
+                        content: 'Make sure your homeowners insurance covers at least [eighty_percent_of_home_value] (80% of your home\'s value), so you\'re fully compensated for losses and damages.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['home_value']
+                    },
+                    {
+                        id: 'SMRT80',
+                        content: 'Simply put, your equity of [current_equity] is the amount of your home\'s value that you own outright. You can find it by subtracting your mortgage balance and any liens from your [home_value] home value.',
+                        status: 'retired',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['current_equity', 'home_value']
+                    },
+                    {
+                        id: 'SMRT81',
+                        content: 'Feeling uncertain about fluctuating interest rates? Tapping into your home equity of [current_equity] can be a reliable option to meet your financial goals.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['current_equity']
+                    },
+                    {
+                        id: 'SMRT87',
+                        content: 'The number one reason homeowners in [state_name] access their equity with a Hometap Investment is to pay off debt.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['state_name']
+                    },
+                    {
+                        id: 'SMRT89',
+                        content: 'Phew! Time flies when you\'re crushing your financial goals. It\'s been about [months_since_effective_date] [effective_date_label] since you received your investment funds. Let\'s see what settling right now would look like.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['months_since_effective_date', 'effective_date_label']
+                    },
+                    {
+                        id: 'SMRT90',
+                        content: 'You\'ve had your Investment for [months_since_effective_date] [effective_date_label]. You have [months_remaining_in_grace_period] [grace_period_label] until your settlement date, but it\'s never too early to think about your settlement options.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['months_remaining_in_grace_period', 'months_since_effective_date', 'effective_date_label', 'grace_period_label']
+                    },
+                    {
+                        id: 'SMRT91',
+                        content: 'Your settlement date is about [months_remaining_in_grace_period] [grace_period_label] away, and your estimated home value in 5 years from now is [five_year_projected_value].',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['months_remaining_in_grace_period', 'five_year_projected_value', 'grace_period_label']
+                    },
+                    {
+                        id: 'SMRT92',
+                        content: 'If you took out a [investment_amount] loan at 8.45% interest, you\'d have to pay [hypothetical_loan_payment_10yr] each month for 10 years — but there are no monthly payments for your Hometap Investment.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['investment_amount', 'hypothetical_loan_payment_10yr']
+                    },
+                    {
+                        id: 'SMRT98',
+                        content: 'You have [hoi_months_until_expiration] [hoi_months_label] before you need to renew your homeowners insurance policy. Let\'s take a fresh look at what your policy should cover.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['hoi_months_until_expiration', 'hoi_months_label']
+                    },
+                    {
+                        id: 'SMRT100',
+                        content: 'Did you know your homeowners insurance policy expires on [hoi_policy_expiration_display]? And as a Hometap homeowner, you have access to a marketplace to shop around before you renew!',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: ['hoi_policy_expiration_display']
+                    },
+                    {
+                        id: 'SMRT101',
+                        content: 'Change happens. If you\'ve had any big life changes since you first received your investment, we\'re here to support you.',
+                        status: 'live',
+                        priority: 1,
+                        isDynamic: true,
+                        hasCta: false,
+                        cta: null,
+                        requiredContext: ['SYSTEM'],
+                        requiresPrimaryUser: false,
+                        requiresProfileComplete: false,
+                        templateKeys: []
+                    }
+                ],
+                
+                get filteredInsights() {
+                    return this.insights.filter(insight => {
+                        const matchesSearch = !this.searchQuery || 
+                            insight.id.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                            insight.content.toLowerCase().includes(this.searchQuery.toLowerCase());
+                        
+                        const matchesStatus = !this.statusFilter || insight.status === this.statusFilter;
+                        
+                        const matchesType = !this.typeFilter || 
+                            (this.typeFilter === 'static' && !insight.isDynamic) ||
+                            (this.typeFilter === 'dynamic' && insight.isDynamic);
+                        
+                        return matchesSearch && matchesStatus && matchesType;
+                    });
+                },
+                
+                get stats() {
+                    return {
+                        total: this.insights.length,
+                        live: this.insights.filter(i => i.status === 'live').length,
+                        review: this.insights.filter(i => i.status === 'review').length,
+                        dynamic: this.insights.filter(i => i.isDynamic).length,
+                        withCta: this.insights.filter(i => i.hasCta).length,
+                        retired: this.insights.filter(i => i.status === 'retired').length
+                    };
+                },
+                
+                exportToCSV() {
+                    const csvData = this.filteredInsights.map(insight => ({
+                        'ID': insight.id,
+                        'Status': insight.status,
+                        'Priority': insight.priority,
+                        'Type': insight.isDynamic ? 'Dynamic' : 'Static',
+                        'Content': insight.content.replace(/\n/g, ' ').replace(/\r/g, ''),
+                        'Dynamic Variables': insight.templateKeys ? insight.templateKeys.join('; ') : '',
+                        'CTA Text': insight.cta ? insight.cta.text : '',
+                        'CTA URL': insight.cta ? insight.cta.url : '',
+                        'Required Context': insight.requiredContext ? insight.requiredContext.join('; ') : '',
+                        'Requires Primary User': insight.requiresPrimaryUser ? 'Yes' : 'No',
+                        'Requires Profile Complete': insight.requiresProfileComplete ? 'Yes' : 'No',
+                        'Has CTA': insight.hasCta ? 'Yes' : 'No'
+                    }));
+                    
+                    // Convert to CSV
+                    const headers = Object.keys(csvData[0]);
+                    const csvContent = [
+                        headers.join(','),
+                        ...csvData.map(row => 
+                            headers.map(header => {
+                                const value = row[header];
+                                // Escape quotes and wrap in quotes if contains comma, quote, or newline
+                                if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                                    return `"${value.replace(/"/g, '""')}"`;
+                                }
+                                return value;
+                            }).join(',')
+                        )
+                    ].join('\n');
+                    
+                    // Create and download file
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `smart_facts_export_${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
