@@ -15,10 +15,5 @@
       "src": "/update",
       "dest": "/build_dashboard.py"
     }
-  ],
-  "functions": {
-    "build_dashboard.py": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
