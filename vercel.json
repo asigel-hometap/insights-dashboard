@@ -1,19 +1,9 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "build_dashboard.py",
-      "use": "@vercel/python"
-    }
-  ],
   "routes": [
     {
       "src": "/",
       "dest": "/index.html"
-    },
-    {
-      "src": "/update",
-      "dest": "/build_dashboard.py"
     }
   ]
 }
